@@ -12,7 +12,8 @@ import {
   Brain,
   BarChart3,
   Activity,
-  TestTube
+  TestTube,
+  FileSearch
 } from 'lucide-react';
 import { ChatHistory } from './chat/ChatHistory';
 import { useChatStore } from '../stores/useChatStore';
@@ -195,6 +196,19 @@ export function NavigationSidebar({
         >
           <Activity className="h-4 w-4" />
           {!collapsed && <span>Metrics</span>}
+        </Button>
+        
+        <Button
+          variant={activeTab === 'ats' ? 'default' : 'ghost'}
+          onClick={() => onTabChange?.('ats')}
+          className={cn(
+            "w-full gap-3",
+            collapsed ? "justify-center" : "justify-start"
+          )}
+          size="lg"
+        >
+          <FileSearch className="h-4 w-4" />
+          {!collapsed && <span>ATS Scanner</span>}
         </Button>
         
         <Button

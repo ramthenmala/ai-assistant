@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
-  "main": "dist-electron/main.js",
+  "main": "dist-electron/main.cjs",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
@@ -14,7 +14,7 @@
     "test:run": "vitest run",
     "test:database": "tsx src/scripts/test-database.ts",
     "test:database-mock": "tsx src/scripts/test-database-mock.ts",
-    "electron:dev": "concurrently \"npm run dev\" \"wait-on http://localhost:5173 && electron .\"",
+    "electron:dev": "concurrently \"npm run dev\" \"wait-on http://localhost:5173 && VITE_DEV_SERVER_URL=http://localhost:5173 electron .\"",
     "electron:build": "npm run build && vite build --config vite.electron.config.ts && electron-builder",
     "electron:preview": "npm run build && vite build --config vite.electron.config.ts && electron ."
   },
@@ -41,6 +41,7 @@
     "pg": "^8.16.3",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
+    "react-dropzone": "^14.3.8",
     "react-resizable-panels": "^0.0.55",
     "sqlite3": "^5.1.7",
     "tailwind-merge": "^1.14.0",

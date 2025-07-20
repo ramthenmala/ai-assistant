@@ -2,7 +2,6 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import type { AppSettings, PrivacySettings, UIPreferences } from '../types';
-import { storage } from '../utils';
 
 interface SettingsState {
   theme: 'light' | 'dark' | 'auto';
@@ -243,9 +242,27 @@ export const useSettingsStore = create<SettingsState & SettingsActions>()(
     {
       name: 'ai-chat-settings',
       storage: createJSONStorage(() => ({
-        getItem: (name) => storage.get(name),
-        setItem: (name, value) => storage.set(name, value),
-        removeItem: (name) => storage.remove(name),
+        getItem: (name) => {
+          try {
+            return localStorage.getItem(name);
+          } catch {
+            return null;
+          }
+        },
+        setItem: (name, value) => {
+          try {
+            localStorage.setItem(name, value);
+          } catch {
+            // Ignore storage errors
+          }
+        },
+        removeItem: (name) => {
+          try {
+            localStorage.removeItem(name);
+          } catch {
+            // Ignore storage errors
+          }
+        },
       })),
       // Don't persist API keys for security
       partialize: (state) => ({

@@ -3,15 +3,16 @@ import { resolve } from 'path'
 
 export default defineConfig({
   build: {
+    ssr: true,
     lib: {
       entry: {
         main: resolve(__dirname, 'electron/main.ts'),
         preload: resolve(__dirname, 'electron/preload.ts'),
       },
-      formats: ['es'],
+      formats: ['cjs'],
     },
     rollupOptions: {
-      external: ['electron'],
+      external: ['electron', 'path', 'fs', 'url'],
     },
     outDir: 'dist-electron',
     emptyOutDir: true,

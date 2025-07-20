@@ -408,6 +408,10 @@ export const useChatStore = create<ChatState & ChatActions>()(
       return chat.messages;
     },
     
+    getAllChats: () => {
+      return get().chats;
+    },
+    
     clearAllChats: () => {
       set({
         chats: [],

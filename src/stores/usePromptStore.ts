@@ -2,7 +2,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import type { SavedPrompt, PromptCategory, PromptVariable, PromptVersion } from '../types';
-import { generateId, getCurrentTimestamp, storage } from '../utils';
+import { generateId, getCurrentTimestamp } from '../utils';
 import { PromptService } from '../services/PromptService';
 import { defaultPrompts } from '../services/DefaultPrompts';
 
@@ -104,7 +104,8 @@ const defaultCategories: PromptCategory[] = [
     description: 'General purpose prompts',
     icon: '💬',
     color: '#6B7280',
-    createdAt: new Date(),
+    createdAt: getCurrentTimestamp(),
+    promptCount: 0
   },
   {
     id: 'writing',
@@ -112,7 +113,8 @@ const defaultCategories: PromptCategory[] = [
     description: 'Writing and content creation prompts',
     icon: '✍️',
     color: '#3B82F6',
-    createdAt: new Date(),
+    createdAt: getCurrentTimestamp(),
+    promptCount: 0
   },
   {
     id: 'coding',
@@ -120,7 +122,8 @@ const defaultCategories: PromptCategory[] = [
     description: 'Programming and development prompts',
     icon: '💻',
     color: '#10B981',
-    createdAt: new Date(),
+    createdAt: getCurrentTimestamp(),
+    promptCount: 0
   },
   {
     id: 'analysis',
@@ -128,7 +131,8 @@ const defaultCategories: PromptCategory[] = [
     description: 'Data analysis and research prompts',
     icon: '📊',
     color: '#F59E0B',
-    createdAt: new Date(),
+    createdAt: getCurrentTimestamp(),
+    promptCount: 0
   },
   {
     id: 'creative',
@@ -136,7 +140,8 @@ const defaultCategories: PromptCategory[] = [
     description: 'Creative and artistic prompts',
     icon: '🎨',
     color: '#EF4444',
-    createdAt: new Date(),
+    createdAt: getCurrentTimestamp(),
+    promptCount: 0
   },
 ];
 
@@ -506,10 +511,10 @@ export const usePromptStore = create<PromptState & PromptActions>()(
               comparison = a.title.localeCompare(b.title);
               break;
             case 'createdAt':
-              comparison = a.createdAt.getTime() - b.createdAt.getTime();
+              comparison = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
               break;
             case 'updatedAt':
-              comparison = a.updatedAt.getTime() - b.updatedAt.getTime();
+              comparison = new Date(a.updatedAt).getTime() - new Date(b.updatedAt).getTime();
               break;
             case 'usageCount':
               comparison = a.usageCount - b.usageCount;
@@ -543,7 +548,7 @@ export const usePromptStore = create<PromptState & PromptActions>()(
       
       getRecentPrompts: (limit = 10) => {
         return get().prompts
-          .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime())
+          .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
           .slice(0, limit);
       },
       
@@ -627,16 +632,58 @@ export const usePromptStore = create<PromptState & PromptActions>()(
         
         // Only initialize if no prompts exist
         if (prompts.length === 0) {
-          set({ prompts: defaultPrompts });
+          // Ensure dates are Date objects
+          const promptsWithDates = defaultPrompts.map(prompt => ({
+            ...prompt,
+            createdAt: new Date(prompt.createdAt),
+            updatedAt: new Date(prompt.updatedAt)
+          }));
+          set({ prompts: promptsWithDates });
         }
       },
     }),
     {
       name: 'ai-chat-prompts',
       storage: createJSONStorage(() => ({
-        getItem: (name) => storage.get(name),
-        setItem: (name, value) => storage.set(name, value),
-        removeItem: (name) => storage.remove(name),
+        getItem: (name) => {
+          try {
+            const item = localStorage.getItem(name);
+            if (!item) return null;
+            
+            // Parse and convert date strings back to Date objects
+            const parsed = JSON.parse(item);
+            if (parsed.state?.prompts) {
+              parsed.state.prompts = parsed.state.prompts.map((prompt: any) => ({
+                ...prompt,
+                createdAt: prompt.createdAt ? new Date(prompt.createdAt) : getCurrentTimestamp(),
+                updatedAt: prompt.updatedAt ? new Date(prompt.updatedAt) : getCurrentTimestamp()
+              }));
+            }
+            if (parsed.state?.categories) {
+              parsed.state.categories = parsed.state.categories.map((category: any) => ({
+                ...category,
+                createdAt: category.createdAt ? new Date(category.createdAt) : getCurrentTimestamp()
+              }));
+            }
+            return JSON.stringify(parsed);
+          } catch {
+            return null;
+          }
+        },
+        setItem: (name, value) => {
+          try {
+            localStorage.setItem(name, value);
+          } catch {
+            // Ignore storage errors
+          }
+        },
+        removeItem: (name) => {
+          try {
+            localStorage.removeItem(name);
+          } catch {
+            // Ignore storage errors
+          }
+        },
       })),
     }
   )

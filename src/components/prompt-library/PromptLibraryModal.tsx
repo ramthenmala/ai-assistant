@@ -25,26 +25,43 @@ export function PromptLibraryModal({
   onSelectPrompt,
   className
 }: PromptLibraryModalProps) {
-  // Use the enhanced prompt store
-  const {
-    prompts,
-    categories,
-    searchQuery,
-    selectedTags,
-    selectedCategory,
-    getFilteredPrompts,
-    setSearchQuery,
-    setSelectedTags,
-    setSelectedCategory,
-    createPrompt,
-    updatePrompt,
-    deletePrompt,
-    toggleFavorite,
-    getFavoritePrompts,
-    getMostUsedPrompts,
-    exportPrompts,
-    initializeDefaultPrompts
-  } = usePromptStore();
+  // Use the enhanced prompt store with error handling
+  const promptStore = usePromptStore();
+  
+  // Safe fallbacks
+  const prompts = promptStore.prompts || [];
+  const categories = promptStore.categories || [];
+  const searchQuery = promptStore.searchQuery || '';
+  const selectedTags = promptStore.selectedTags || [];
+  const selectedCategory = promptStore.selectedCategory || null;
+  
+  // Safe method calls
+  const getFilteredPrompts = () => {
+    try {
+      return promptStore.getFilteredPrompts();
+    } catch (error) {
+      console.error('Error getting filtered prompts:', error);
+      return [];
+    }
+  };
+  
+  const getFavoritePrompts = () => {
+    try {
+      return promptStore.getFavoritePrompts();
+    } catch (error) {
+      console.error('Error getting favorite prompts:', error);
+      return [];
+    }
+  };
+  
+  const getMostUsedPrompts = (limit: number) => {
+    try {
+      return promptStore.getMostUsedPrompts(limit);
+    } catch (error) {
+      console.error('Error getting most used prompts:', error);
+      return [];
+    }
+  };
 
   const [isCreating, setIsCreating] = useState(false);
   const [editingPrompt, setEditingPrompt] = useState<any>(null);
@@ -63,18 +80,26 @@ export function PromptLibraryModal({
   
   // Initialize default prompts if none exist
   useEffect(() => {
-    if (prompts.length === 0) {
-      initializeDefaultPrompts();
+    try {
+      if (prompts.length === 0) {
+        promptStore.initializeDefaultPrompts();
+      }
+    } catch (error) {
+      console.error('Error initializing default prompts:', error);
     }
-  }, [prompts.length, initializeDefaultPrompts]);
+  }, [prompts.length, promptStore]);
   
   // Toggle tag selection
   const toggleTag = (tag: string) => {
-    setSelectedTags(
-      selectedTags.includes(tag) 
-        ? selectedTags.filter(t => t !== tag) 
-        : [...selectedTags, tag]
-    );
+    try {
+      promptStore.setSelectedTags(
+        selectedTags.includes(tag) 
+          ? selectedTags.filter(t => t !== tag) 
+          : [...selectedTags, tag]
+      );
+    } catch (error) {
+      console.error('Error toggling tag:', error);
+    }
   };
   
   // Handle creating a new prompt
@@ -95,10 +120,14 @@ export function PromptLibraryModal({
       isFavorite: false
     };
     
-    if (editingPrompt) {
-      updatePrompt(editingPrompt.id, promptData);
-    } else {
-      createPrompt(promptData);
+    try {
+      if (editingPrompt) {
+        promptStore.updatePrompt(editingPrompt.id, promptData);
+      } else {
+        promptStore.createPrompt(promptData);
+      }
+    } catch (error) {
+      console.error('Error creating/updating prompt:', error);
     }
     
     // Reset form
@@ -128,14 +157,18 @@ export function PromptLibraryModal({
   
   // Handle export
   const handleExport = () => {
-    const data = exportPrompts('json');
-    const blob = new Blob([data], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `prompts-${new Date().toISOString().split('T')[0]}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
+    try {
+      const data = promptStore.exportPrompts('json');
+      const blob = new Blob([data], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `prompts-${new Date().toISOString().split('T')[0]}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Error exporting prompts:', error);
+    }
   };
 
   return (
@@ -189,7 +222,7 @@ export function PromptLibraryModal({
                 <Input
                   placeholder="Search prompts..."
                   value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onChange={(e) => promptStore.setSearchQuery(e.target.value)}
                   className="pl-10"
                 />
               </div>
@@ -203,7 +236,7 @@ export function PromptLibraryModal({
               </h3>
               <div className="space-y-1">
                 <button
-                  onClick={() => setSelectedCategory(null)}
+                  onClick={() => promptStore.setSelectedCategory(null)}
                   className={cn(
                     "w-full text-left p-2 rounded-md text-sm hover:bg-accent",
                     selectedCategory === null && "bg-accent"
@@ -214,7 +247,7 @@ export function PromptLibraryModal({
                 {categories.map(category => (
                   <button
                     key={category.id}
-                    onClick={() => setSelectedCategory(category.id)}
+                    onClick={() => promptStore.setSelectedCategory(category.id)}
                     className={cn(
                       "w-full text-left p-2 rounded-md text-sm hover:bg-accent flex items-center",
                       selectedCategory === category.id && "bg-accent"
@@ -390,8 +423,8 @@ export function PromptLibraryModal({
                           <Button
                             variant="link"
                             onClick={() => {
-                              setSearchQuery('');
-                              setSelectedTags([]);
+                              promptStore.setSearchQuery('');
+                              promptStore.setSelectedTags([]);
                             }}
                           >
                             Clear filters
@@ -422,7 +455,11 @@ export function PromptLibraryModal({
                                 className="h-7 w-7"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  toggleFavorite(prompt.id);
+                                  try {
+                                    promptStore.toggleFavorite(prompt.id);
+                                  } catch (error) {
+                                    console.error('Error toggling favorite:', error);
+                                  }
                                 }}
                               >
                                 {prompt.isFavorite ? (
@@ -451,7 +488,11 @@ export function PromptLibraryModal({
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   if (confirm('Are you sure you want to delete this prompt?')) {
-                                    deletePrompt(prompt.id);
+                                    try {
+                                      promptStore.deletePrompt(prompt.id);
+                                    } catch (error) {
+                                      console.error('Error deleting prompt:', error);
+                                    }
                                   }
                                 }}
                               >

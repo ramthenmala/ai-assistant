@@ -31,7 +31,7 @@ function createWindow() {
     minHeight: 600,
     icon: path.join(process.env.VITE_PUBLIC, 'electron.png'),
     webPreferences: {
-      preload: path.join(__dirname, 'preload.mjs'),
+      preload: path.join(__dirname, 'preload.cjs'),
       nodeIntegration: false,
       contextIsolation: true,
     },

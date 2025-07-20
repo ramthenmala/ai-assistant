@@ -38,7 +38,7 @@ export function SDLCEnhancedChatWindow({ chatId, className }: SDLCEnhancedChatWi
   // Store hooks
   const {
     currentChatId,
-    getCurrentChat,
+    getChatById,
     addMessage,
     updateMessage,
     createChat
@@ -63,7 +63,7 @@ export function SDLCEnhancedChatWindow({ chatId, className }: SDLCEnhancedChatWi
   } = useSDLCIntegration();
 
   // Get current chat or create one
-  const currentChat = getCurrentChat();
+  const currentChat = currentChatId ? getChatById(currentChatId) : null;
   const messages = currentChat?.messages || [];
 
   // Auto-scroll to bottom

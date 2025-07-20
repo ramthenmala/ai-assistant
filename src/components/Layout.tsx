@@ -131,18 +131,6 @@ export function Layout({ children, windowCount = 0 }: LayoutProps) {
     }
   ];
 
-  const mockPrompts = [
-    {
-      id: 'prompt-1',
-      title: 'Code Review',
-      description: 'Analyze code and provide feedback',
-      content: 'Please review this code and provide feedback on:\n1. Code quality\n2. Performance\n3. Security\n4. Best practices',
-      tags: ['code', 'review'],
-      createdAt: new Date(),
-      usageCount: 5,
-      isFavorite: true
-    }
-  ];
 
   const mockApiKeys = [
     { service: 'OpenAI', key: '', isValid: false },
@@ -300,16 +288,7 @@ export function Layout({ children, windowCount = 0 }: LayoutProps) {
       {isSettingsPanelOpen && (
         <ErrorBoundary level="component">
           <SettingsPanel
-            apiKeys={mockApiKeys}
-            privacySettings={mockPrivacySettings}
-            keyboardShortcuts={mockKeyboardShortcuts}
             onClose={() => setIsSettingsPanelOpen(false)}
-            onUpdateApiKey={(service, key) => {
-              console.log('Update API key:', service, key);
-            }}
-            onUpdatePrivacySetting={(setting, value) => {
-              console.log('Update privacy setting:', setting, value);
-            }}
           />
         </ErrorBoundary>
       )}
@@ -317,17 +296,10 @@ export function Layout({ children, windowCount = 0 }: LayoutProps) {
       {isPromptLibraryOpen && (
         <ErrorBoundary level="component">
           <PromptLibraryModal
-            prompts={mockPrompts}
             onClose={() => setIsPromptLibraryOpen(false)}
             onSelectPrompt={(prompt) => {
               insertPromptFn(prompt.content);
               setIsPromptLibraryOpen(false);
-            }}
-            onCreatePrompt={(prompt) => {
-              console.log('Create prompt:', prompt);
-            }}
-            onToggleFavorite={(promptId) => {
-              console.log('Toggle favorite:', promptId);
             }}
           />
         </ErrorBoundary>

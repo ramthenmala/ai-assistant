@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Layout } from './components/Layout';
+import { Layout, useLayout } from './components/Layout';
 import { EnhancedSplitChatContainer } from './components/chat/EnhancedSplitChatContainer';
+import { ATSContainer } from './components/ats/ATSContainer';
 import { Button } from './components/ui/button';
 import { themeUtils } from './lib/utils';
 import { Database } from 'lucide-react';
@@ -12,14 +13,24 @@ import { useKnowledgeStore } from './stores/useKnowledgeStore';
 import { useSettingsStore } from './stores/useSettingsStore';
 import { useSDLCStore } from './stores/useSDLCStore';
 
-// Chat interface component that uses layout context
-function ChatInterface() {
+// Main content component that switches based on active tab
+function MainContent() {
+  const { activeTab } = useLayout();
   
-  return (
-    <div className="flex-1 flex flex-col h-full">
-      <EnhancedSplitChatContainer className="h-full" />
-    </div>
-  );
+  switch (activeTab) {
+    case 'ats':
+      return <ATSContainer />;
+    case 'sdlc':
+    case 'comparison':
+    case 'metrics':
+    case 'chat':
+    default:
+      return (
+        <div className="flex-1 flex flex-col h-full">
+          <EnhancedSplitChatContainer className="h-full" />
+        </div>
+      );
+  }
 }
 
 function App() {
@@ -99,7 +110,7 @@ function App() {
 
   return (
     <Layout>
-      <ChatInterface />
+      <MainContent />
     </Layout>
   );
 }

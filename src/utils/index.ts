@@ -13,6 +13,7 @@ export function generateId(): string {
   return crypto.randomUUID();
 }
 
+
 // Format timestamps
 export function formatTimestamp(date: Date): string {
   const now = new Date();

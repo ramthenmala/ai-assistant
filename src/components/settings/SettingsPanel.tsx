@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
+import { useSettingsStore } from '@/stores/useSettingsStore';
 import { 
   X, 
   Settings, 
@@ -39,28 +40,39 @@ interface KeyboardShortcut {
 }
 
 interface SettingsPanelProps {
-  apiKeys: ApiKey[];
-  privacySettings: PrivacySettings;
-  keyboardShortcuts: KeyboardShortcut[];
   onClose: () => void;
-  onUpdateApiKey?: (service: string, key: string) => void;
-  onUpdatePrivacySetting?: (setting: keyof PrivacySettings, value: boolean) => void;
-  onUpdateKeyboardShortcut?: (action: string, keys: string[]) => void;
   className?: string;
 }
 
 export function SettingsPanel({
-  apiKeys,
-  privacySettings,
-  keyboardShortcuts,
   onClose,
-  onUpdateApiKey,
-  onUpdatePrivacySetting,
-  onUpdateKeyboardShortcut,
   className
 }: SettingsPanelProps) {
   const [activeTab, setActiveTab] = useState<'appearance' | 'api-keys' | 'privacy' | 'shortcuts'>('appearance');
   const [showApiKeys, setShowApiKeys] = useState<Record<string, boolean>>({});
+  
+  // Get settings from store
+  const {
+    apiKeys,
+    privacySettings,
+    keyboardShortcuts,
+    setApiKey,
+    updatePrivacySettings,
+    updateKeyboardShortcut
+  } = useSettingsStore();
+  
+  // Convert apiKeys object to array format expected by the component
+  const apiKeysArray = [
+    { service: 'OpenAI', key: apiKeys.openai || '', isValid: Boolean(apiKeys.openai) },
+    { service: 'Anthropic', key: apiKeys.anthropic || '', isValid: Boolean(apiKeys.anthropic) },
+    { service: 'Google', key: apiKeys.google || '', isValid: Boolean(apiKeys.google) }
+  ];
+  
+  // Convert keyboard shortcuts object to array format
+  const keyboardShortcutsArray = Object.entries(keyboardShortcuts).map(([action, keys]) => ({
+    action: action.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase()),
+    keys: keys.split('+')
+  }));
   
   // Toggle API key visibility
   const toggleApiKeyVisibility = (service: string) => {
@@ -72,16 +84,12 @@ export function SettingsPanel({
   
   // Handle API key change
   const handleApiKeyChange = (service: string, key: string) => {
-    if (onUpdateApiKey) {
-      onUpdateApiKey(service, key);
-    }
+    setApiKey(service.toLowerCase(), key);
   };
   
   // Handle privacy setting toggle
   const handlePrivacySettingToggle = (setting: keyof PrivacySettings) => {
-    if (onUpdatePrivacySetting) {
-      onUpdatePrivacySetting(setting, !privacySettings[setting]);
-    }
+    updatePrivacySettings({ [setting]: !privacySettings[setting] });
   };
 
   return (
@@ -253,7 +261,7 @@ export function SettingsPanel({
                 </p>
                 
                 <div className="space-y-4">
-                  {apiKeys.map(apiKey => (
+                  {apiKeysArray.map(apiKey => (
                     <div key={apiKey.service} className="space-y-2">
                       <div className="flex items-center justify-between">
                         <label className="text-sm font-medium">{apiKey.service}</label>
@@ -430,7 +438,7 @@ export function SettingsPanel({
               <div>
                 <h3 className="text-lg font-medium mb-4">Keyboard Shortcuts</h3>
                 <div className="space-y-2">
-                  {keyboardShortcuts.map(shortcut => (
+                  {keyboardShortcutsArray.map(shortcut => (
                     <div 
                       key={shortcut.action}
                       className="flex items-center justify-between p-3 bg-accent/30 rounded-md"
