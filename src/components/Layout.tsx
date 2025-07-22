@@ -8,6 +8,8 @@ import { ErrorBoundary } from './ErrorBoundary';
 import { ToastProvider } from './ui/toast';
 import { useKnowledgeStore } from '@/stores/useKnowledgeStore';
 import { useSettingsStore } from '@/stores/useSettingsStore';
+import { useAuthStore } from '@/stores/useAuthStore';
+import { UserDropdown } from './auth/UserDropdown';
 
 // Layout Context for sharing panel functions with child components
 interface LayoutContextType {
@@ -52,6 +54,11 @@ export function Layout({ children, windowCount = 0 }: LayoutProps) {
   const [activeTab, setActiveTab] = useState('chat');
   const [isSDLCInitialized, setIsSDLCInitialized] = useState(false);
   const [hasComparisonResult, setHasComparisonResult] = useState(false);
+  
+  // Auth state
+  const user = useAuthStore(state => state.user);
+  const logout = useAuthStore(state => state.logout);
+  const setAuthScreen = useAuthStore(state => state.setAuthScreen);
   
   // Initialize knowledge services
   const initializeServices = useKnowledgeStore(state => state.initializeServices);

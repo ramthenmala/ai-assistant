@@ -13,6 +13,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useLayout } from '@/components/Layout';
 import { useSDLCStore } from '@/stores/useSDLCStore';
+import { UserDropdown } from '@/components/auth/UserDropdown';
+import { useAuthStore } from '@/stores/useAuthStore';
 import { 
   Plus, 
   X, 
@@ -95,6 +97,10 @@ export function EnhancedSplitChatContainer({
     setIsStreaming,
     setStreamingMessage
   } = useChatStore();
+  
+  // Auth state
+  const user = useAuthStore(state => state.user);
+  
   // Local state
   const [models, setModels] = useState<ModelConfig[]>([]);
   const [isBroadcastMode, setIsBroadcastMode] = useState(false);
@@ -503,6 +509,15 @@ export function EnhancedSplitChatContainer({
                   </span>
                 </div>
               </div>
+              
+              {/* User Dropdown */}
+              {user && (
+                <UserDropdown 
+                  userName={`${user.firstName} ${user.lastName}`}
+                  userEmail={user.email}
+                  userAvatar={user.avatar}
+                />
+              )}
             </div>
           </div>
 

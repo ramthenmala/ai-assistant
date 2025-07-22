@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { EditableMessage } from './EditableMessage';
+import { MediaDisplay } from '@/components/media/MediaDisplay';
 import type { Message } from '@/types';
 
 export interface MessageBubbleProps {
@@ -395,6 +396,11 @@ export const MessageBubble = React.memo(function MessageBubble({
           />
         ) : (
           <div className="space-y-2">
+            {/* Media attachments */}
+            {message.attachments && message.attachments.length > 0 && (
+              <MediaDisplay attachments={message.attachments} readonly={true} />
+            )}
+            
             <div className="whitespace-pre-wrap break-words">
               {message.content}
               {isStreaming && StreamingIndicator}

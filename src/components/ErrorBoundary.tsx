@@ -42,7 +42,7 @@ export class ErrorBoundary extends Component<Props, State> {
     });
 
     // Log error to console in development
-    if (process.env.NODE_ENV === 'development') {
+    if (import.meta.env.DEV) {
       console.error('ErrorBoundary caught an error:', error, errorInfo);
     }
 
@@ -191,7 +191,7 @@ URL: ${window.location.href}
                 <p className="text-muted-foreground text-sm">
                   This page encountered an error. You can try reloading or go back to the home page.
                 </p>
-                {process.env.NODE_ENV === 'development' && (
+                {import.meta.env.DEV && (
                   <div className="text-xs text-muted-foreground font-mono bg-muted p-2 rounded text-left">
                     {error?.message}
                   </div>
@@ -234,7 +234,7 @@ URL: ${window.location.href}
               <p className="text-xs text-muted-foreground">
                 This component failed to load. Try refreshing or contact support if the problem persists.
               </p>
-              {process.env.NODE_ENV === 'development' && (
+              {import.meta.env.DEV && (
                 <details className="text-xs">
                   <summary className="cursor-pointer text-muted-foreground hover:text-foreground">
                     Error Details
@@ -303,7 +303,7 @@ export function useErrorHandler() {
     }
 
     // In development, also log to console
-    if (process.env.NODE_ENV === 'development') {
+    if (import.meta.env.DEV) {
       console.error('Manual error report:', error, context);
     }
   };

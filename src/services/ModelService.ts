@@ -1,5 +1,5 @@
 // Model Service for AI communication with streaming support
-import type { AIModel, ModelConfig, StreamingStatus } from '../types';
+import type { AIModel, ModelConfig, StreamingStatus, MediaAttachment } from '../types';
 
 export interface StreamingResponse {
   id: string;
@@ -13,6 +13,7 @@ export interface ModelMessage {
   role: 'user' | 'assistant' | 'system';
   content: string;
   timestamp?: Date;
+  attachments?: MediaAttachment[];
 }
 
 export interface ModelRequest {

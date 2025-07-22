@@ -67,6 +67,15 @@ const defaultModels: AIModel[] = [
     isAvailable: true,
   },
   {
+    id: 'gpt-4-vision',
+    name: 'GPT-4 Vision',
+    provider: 'openai',
+    type: 'chat',
+    isAvailable: true,
+    supportsVision: true,
+    supportedMediaTypes: ['image/jpeg', 'image/png', 'image/gif', 'image/webp'],
+  },
+  {
     id: 'gpt-3.5-turbo',
     name: 'GPT-3.5 Turbo',
     provider: 'openai',
@@ -79,6 +88,8 @@ const defaultModels: AIModel[] = [
     provider: 'anthropic',
     type: 'chat',
     isAvailable: true,
+    supportsVision: true,
+    supportedMediaTypes: ['image/jpeg', 'image/png', 'image/gif', 'image/webp'],
   },
   {
     id: 'claude-3-sonnet',
@@ -86,6 +97,8 @@ const defaultModels: AIModel[] = [
     provider: 'anthropic',
     type: 'chat',
     isAvailable: true,
+    supportsVision: true,
+    supportedMediaTypes: ['image/jpeg', 'image/png', 'image/gif', 'image/webp'],
   },
   {
     id: 'local-llama',
@@ -98,6 +111,13 @@ const defaultModels: AIModel[] = [
 
 const defaultModelConfigs: Record<string, ModelConfig> = {
   'gpt-4': {
+    temperature: 0.7,
+    maxTokens: 4096,
+    topP: 1,
+    frequencyPenalty: 0,
+    presencePenalty: 0,
+  },
+  'gpt-4-vision': {
     temperature: 0.7,
     maxTokens: 4096,
     topP: 1,

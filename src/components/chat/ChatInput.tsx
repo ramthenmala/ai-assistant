@@ -5,10 +5,13 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Send, Paperclip, Sparkles } from 'lucide-react';
 import { useChatStore } from '@/stores/useChatStore';
+import { MediaUpload } from '@/components/media/MediaUpload';
+import { MediaDisplay } from '@/components/media/MediaDisplay';
+import type { MediaAttachment } from '@/types';
 
 interface ChatInputProps {
   chatId?: string;
-  onSendMessage: (content: string) => void;
+  onSendMessage: (content: string, attachments?: MediaAttachment[]) => void;
   onOpenPromptLibrary?: () => void;
   isDisabled?: boolean;
   isLoading?: boolean;
@@ -28,6 +31,8 @@ export function ChatInput({
   autoFocus = false
 }: ChatInputProps) {
   const [message, setMessage] = useState('');
+  const [attachments, setAttachments] = useState<MediaAttachment[]>([]);
+  const [showMediaUpload, setShowMediaUpload] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   
   // Get streaming state from the store
@@ -59,15 +64,26 @@ export function ChatInput({
   
   const handleSubmit = () => {
     const trimmedMessage = message.trim();
-    if (trimmedMessage && !shouldDisable) {
-      onSendMessage(trimmedMessage);
+    if ((trimmedMessage || attachments.length > 0) && !shouldDisable) {
+      onSendMessage(trimmedMessage || 'Attached files:', attachments);
       setMessage('');
+      setAttachments([]);
+      setShowMediaUpload(false);
       
       // Reset textarea height
       if (textareaRef.current) {
         textareaRef.current.style.height = 'auto';
       }
     }
+  };
+
+  const handleMediaUpload = (newAttachments: MediaAttachment[]) => {
+    setAttachments(prev => [...prev, ...newAttachments]);
+    setShowMediaUpload(false);
+  };
+
+  const handleRemoveAttachment = (attachmentId: string) => {
+    setAttachments(prev => prev.filter(a => a.id !== attachmentId));
   };
   
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -119,6 +135,7 @@ export function ChatInput({
             variant="ghost"
             size="icon"
             className="h-8 w-8 text-muted-foreground hover:text-foreground"
+            onClick={() => setShowMediaUpload(!showMediaUpload)}
             disabled={shouldDisable}
             title="Attach file"
           >
@@ -126,11 +143,11 @@ export function ChatInput({
           </Button>
           
           <Button
-            variant={message.trim() ? "default" : "ghost"}
+            variant={message.trim() || attachments.length > 0 ? "default" : "ghost"}
             size="icon"
             className="h-8 w-8"
             onClick={handleSubmit}
-            disabled={!message.trim() || shouldDisable}
+            disabled={(!message.trim() && attachments.length === 0) || shouldDisable}
             title="Send message"
           >
             {isLoading ? (
@@ -144,6 +161,24 @@ export function ChatInput({
           </Button>
         </div>
       </div>
+
+      {/* Media Upload Section */}
+      {showMediaUpload && (
+        <div className="p-3 border-t bg-muted/20">
+          <MediaUpload onUpload={handleMediaUpload} />
+        </div>
+      )}
+
+      {/* Attachments Display */}
+      {attachments.length > 0 && (
+        <div className="p-3 border-t">
+          <MediaDisplay 
+            attachments={attachments} 
+            onRemove={handleRemoveAttachment}
+            compact={true}
+          />
+        </div>
+      )}
       
       <div className="px-3 py-1 text-xs text-muted-foreground border-t">
         <span>Press <kbd className="px-1 py-0.5 bg-muted rounded text-[10px]">Ctrl</kbd>+<kbd className="px-1 py-0.5 bg-muted rounded text-[10px]">Enter</kbd> to send</span>

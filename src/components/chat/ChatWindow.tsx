@@ -11,14 +11,14 @@ import { modelManager, createChatContext, createSendMessageOptions } from '@/ser
 import { MessageService } from '@/services/MessageService';
 import { useToastActions } from '@/components/ui/toast';
 import { Calendar, MoreHorizontal, MessageSquare } from 'lucide-react';
-import type { Message } from '@/types';
+import type { Message, MediaAttachment } from '@/types';
 import { usePerformanceMonitor, throttle, rafThrottle, debounce } from '@/utils/performance';
 
 // Props interface for ChatWindow component
 interface ChatWindowProps {
   chatId?: string;
   modelId?: string;
-  onSendMessage?: (content: string) => void;
+  onSendMessage?: (content: string, attachments?: MediaAttachment[]) => void;
   onEditMessage?: (messageId: string, content: string) => void;
   onBranchMessage?: (messageId: string) => void;
   onRegenerateResponse?: (messageId: string) => void;
@@ -323,7 +323,7 @@ export const ChatWindow = memo(function ChatWindow({
   }, [activeChatId, getCurrentMessages, messages, streamingMessageId, performanceMonitor, debouncedSetMessages]);
   
   // Handle sending a new message - memoized to prevent unnecessary re-renders
-  const handleSendMessage = useCallback(async (content: string) => {
+  const handleSendMessage = useCallback(async (content: string, attachments?: MediaAttachment[]) => {
     // Create a chat if none exists
     let targetChatId = activeChatId;
     if (!targetChatId) {
@@ -334,7 +334,9 @@ export const ChatWindow = memo(function ChatWindow({
     addMessage(targetChatId, {
       content,
       role: 'user',
-      isEdited: false
+      isEdited: false,
+      attachments: attachments,
+      hasVisionContent: attachments?.some(a => a.type === 'image')
     });
     
     // Add assistant message placeholder to the store
@@ -351,7 +353,7 @@ export const ChatWindow = memo(function ChatWindow({
     
     // Call the parent handler if provided
     if (onSendMessage) {
-      onSendMessage(content);
+      onSendMessage(content, attachments);
     }
     
     try {
@@ -985,7 +987,7 @@ export const ChatWindow = memo(function ChatWindow({
       result = shouldUseVirtualization ? virtualizedMessageListComponent : standardMessageListComponent;
       
       // Log virtualization decision for performance analysis
-      if (process.env.NODE_ENV === 'development') {
+      if (import.meta.env.DEV) {
         console.debug(
           `ChatWindow: Using ${shouldUseVirtualization ? 'virtualized' : 'standard'} message list for ${messages.length} messages`
         );

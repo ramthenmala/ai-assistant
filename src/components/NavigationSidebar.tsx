@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { 
   MessageSquare, 
   Plus, 
@@ -47,7 +48,14 @@ export function NavigationSidebar({
   isSDLCInitialized = false,
   hasComparisonResult = false
 }: NavigationSidebarProps) {
+  const location = useLocation();
+  const navigate = useNavigate();
   const [chatHistoryExpanded, setChatHistoryExpanded] = useState(true);
+  
+  // Check if we're on a settings-related page
+  const isSettingsPage = location.pathname.includes('/settings') || 
+                         location.pathname.includes('/profile') || 
+                         location.pathname.includes('/change-password');
   
   // Chat store integration
   const {
@@ -102,6 +110,44 @@ export function NavigationSidebar({
     console.log('Toggle favorite:', chatId);
   }, []);
 
+  // Enhanced navigation handlers that work across pages
+  const handleTabNavigation = useCallback((tab: string) => {
+    // If we're on a settings page, navigate to home first
+    if (isSettingsPage) {
+      navigate('/');
+      // Use setTimeout to ensure navigation completes before tab change
+      setTimeout(() => onTabChange?.(tab), 100);
+    } else {
+      onTabChange?.(tab);
+    }
+  }, [isSettingsPage, navigate, onTabChange]);
+
+  const handleNewChat = useCallback(() => {
+    if (isSettingsPage) {
+      navigate('/');
+      setTimeout(() => handleChatCreate(), 100);
+    } else {
+      handleChatCreate();
+    }
+  }, [isSettingsPage, navigate, handleChatCreate]);
+
+  // Enhanced modal handlers that work across pages
+  const handlePromptLibrary = useCallback(() => {
+    onPromptLibraryOpen?.();
+  }, [onPromptLibraryOpen]);
+
+  const handleSearch = useCallback(() => {
+    onSearchOpen?.();
+  }, [onSearchOpen]);
+
+  const handleKnowledgeBase = useCallback(() => {
+    onKnowledgeBaseOpen?.();
+  }, [onKnowledgeBaseOpen]);
+
+  const handleSettingsModal = useCallback(() => {
+    onSettingsOpen?.();
+  }, [onSettingsOpen]);
+
   // Mock folders data for now
   const folders = [];
 
@@ -130,7 +176,7 @@ export function NavigationSidebar({
       {/* Quick Actions */}
       <div className="p-4 space-y-2">
         <Button
-          onClick={handleChatCreate}
+          onClick={handleNewChat}
           className={cn(
             "w-full gap-3",
             collapsed ? "justify-center" : "justify-start"
@@ -146,7 +192,7 @@ export function NavigationSidebar({
       <nav className="px-4 space-y-1 mb-4">
         <Button
           variant={activeTab === 'chat' ? 'default' : 'ghost'}
-          onClick={() => onTabChange?.('chat')}
+          onClick={() => handleTabNavigation('chat')}
           className={cn(
             "w-full gap-3",
             collapsed ? "justify-center" : "justify-start"
@@ -159,7 +205,7 @@ export function NavigationSidebar({
         
         <Button
           variant={activeTab === 'sdlc' ? 'default' : 'ghost'}
-          onClick={() => onTabChange?.('sdlc')}
+          onClick={() => handleTabNavigation('sdlc')}
           disabled={!isSDLCInitialized}
           className={cn(
             "w-full gap-3",
@@ -173,7 +219,7 @@ export function NavigationSidebar({
         
         <Button
           variant={activeTab === 'comparison' ? 'default' : 'ghost'}
-          onClick={() => onTabChange?.('comparison')}
+          onClick={() => handleTabNavigation('comparison')}
           disabled={!hasComparisonResult}
           className={cn(
             "w-full gap-3",
@@ -187,7 +233,7 @@ export function NavigationSidebar({
         
         <Button
           variant={activeTab === 'metrics' ? 'default' : 'ghost'}
-          onClick={() => onTabChange?.('metrics')}
+          onClick={() => handleTabNavigation('metrics')}
           className={cn(
             "w-full gap-3",
             collapsed ? "justify-center" : "justify-start"
@@ -200,7 +246,7 @@ export function NavigationSidebar({
         
         <Button
           variant={activeTab === 'ats' ? 'default' : 'ghost'}
-          onClick={() => onTabChange?.('ats')}
+          onClick={() => handleTabNavigation('ats')}
           className={cn(
             "w-full gap-3",
             collapsed ? "justify-center" : "justify-start"
@@ -213,7 +259,7 @@ export function NavigationSidebar({
         
         <Button
           variant={activeTab === 'settings' ? 'default' : 'ghost'}
-          onClick={() => onTabChange?.('settings')}
+          onClick={() => handleTabNavigation('settings')}
           className={cn(
             "w-full gap-3",
             collapsed ? "justify-center" : "justify-start"
@@ -229,7 +275,7 @@ export function NavigationSidebar({
       <nav className="px-4 space-y-1">
         <Button
           variant="ghost"
-          onClick={onPromptLibraryOpen}
+          onClick={handlePromptLibrary}
           className={cn(
             "w-full gap-3",
             collapsed ? "justify-center" : "justify-start"
@@ -242,7 +288,7 @@ export function NavigationSidebar({
         
         <Button
           variant="ghost"
-          onClick={onSearchOpen}
+          onClick={handleSearch}
           className={cn(
             "w-full gap-3",
             collapsed ? "justify-center" : "justify-start"
@@ -255,7 +301,7 @@ export function NavigationSidebar({
         
         <Button
           variant="ghost"
-          onClick={onKnowledgeBaseOpen}
+          onClick={handleKnowledgeBase}
           className={cn(
             "w-full gap-3",
             collapsed ? "justify-center" : "justify-start"
@@ -268,7 +314,7 @@ export function NavigationSidebar({
         
         <Button
           variant="ghost"
-          onClick={onSettingsOpen}
+          onClick={handleSettingsModal}
           className={cn(
             "w-full gap-3",
             collapsed ? "justify-center" : "justify-start"
@@ -280,8 +326,8 @@ export function NavigationSidebar({
         </Button>
       </nav>
 
-      {/* Chat History Section */}
-      {!collapsed && (
+      {/* Chat History Section - Hidden on settings pages */}
+      {!collapsed && !isSettingsPage && (
         <div className="flex-1 mt-6">
           <ChatHistory
             chats={chats}
@@ -298,6 +344,17 @@ export function NavigationSidebar({
             onMoveChatToFolder={handleMoveChatToFolder}
             className="h-full"
           />
+        </div>
+      )}
+
+      {/* Settings Page Info - Shown when chat history is hidden */}
+      {!collapsed && isSettingsPage && (
+        <div className="flex-1 mt-6 p-4">
+          <div className="text-center text-muted-foreground">
+            <Settings className="w-8 h-8 mx-auto mb-2 opacity-50" />
+            <p className="text-sm">Account Settings</p>
+            <p className="text-xs mt-1">Manage your preferences</p>
+          </div>
         </div>
       )}
     </aside>

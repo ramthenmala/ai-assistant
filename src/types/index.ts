@@ -7,6 +7,24 @@ export interface MessageVersion {
   editReason?: string;
 }
 
+export interface MediaAttachment {
+  id: string;
+  type: 'image' | 'file' | 'audio' | 'video';
+  name: string;
+  size: number;
+  mimeType: string;
+  url?: string;
+  base64Data?: string;
+  thumbnailUrl?: string;
+  dimensions?: {
+    width: number;
+    height: number;
+  };
+  processingStatus?: 'uploading' | 'processing' | 'ready' | 'error';
+  extractedText?: string;
+  metadata?: Record<string, any>;
+}
+
 export interface Message {
   id: string;
   content: string;
@@ -19,6 +37,8 @@ export interface Message {
   metadata?: Record<string, any>;
   versions?: MessageVersion[];
   editedAt?: Date;
+  attachments?: MediaAttachment[];
+  hasVisionContent?: boolean;
 }
 
 export interface Branch {
@@ -125,6 +145,8 @@ export interface AIModel {
   type: 'chat' | 'completion';
   isAvailable: boolean;
   config?: ModelConfig;
+  supportsVision?: boolean;
+  supportedMediaTypes?: string[];
 }
 
 export interface ModelConfig {

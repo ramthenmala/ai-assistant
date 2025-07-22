@@ -36,7 +36,7 @@ export class EmbeddingService {
   private model: string;
 
   constructor(settings: AppSettings) {
-    this.apiKey = settings.apiKeys.openai || '';
+    this.apiKey = settings.apiKeys.openai || import.meta.env.VITE_OPENAI_API_KEY || '';
     this.baseUrl = 'https://api.openai.com/v1';
     this.model = 'text-embedding-3-small'; // Default model
   }
