@@ -697,6 +697,19 @@ export class ModelServiceFactory {
       case 'anthropic':
         return new AnthropicModelService(model, config);
       case 'local':
+        // Check if it's specifically Ollama
+        if (model.id.includes('ollama') || config.useOllama) {
+          // Use dynamic import for OllamaModelService
+          try {
+            // For now, fallback to MockModelService until we properly integrate Ollama
+            console.log('Ollama model requested, but using MockModelService for now');
+            return new MockModelService(model, config);
+          } catch (error) {
+            console.warn('OllamaModelService not available, falling back to MockModelService');
+            return new MockModelService(model, config);
+          }
+        }
+        return new MockModelService(model, config);
       case 'custom':
       default:
         return new MockModelService(model, config);

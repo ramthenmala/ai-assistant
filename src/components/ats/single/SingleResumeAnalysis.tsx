@@ -1,44 +1,105 @@
-import React, { useState, useCallback } from 'react';
-import { Upload, FileText, AlertCircle, CheckCircle, Loader2 } from 'lucide-react';
+import React, { useState, useCallback, useRef } from 'react';
+import { useDropzone } from 'react-dropzone';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
-import type { FileInfo, ParsedResume, CandidateScore } from '@/types/ats';
-import { useDropzone } from 'react-dropzone';
-import { cn } from '@/lib/utils';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { 
+  Upload, 
+  FileText, 
+  Loader2, 
+  CheckCircle2, 
+  AlertCircle,
+  Download,
+  Eye,
+  Wifi,
+  WifiOff
+} from 'lucide-react';
+import { useATSStore } from '@/stores/useATSStore';
+import { ATSManager } from '@/services/ats/ATSManager';
+import type { ParsedResume, ATSScore } from '@/types/ats';
 
-interface SingleResumeAnalysisProps {
-  jobDescription?: string;
-}
+export const SingleResumeAnalysis: React.FC = () => {
+  const [uploadStatus, setUploadStatus] = useState<'idle' | 'uploading' | 'processing' | 'complete' | 'error'>('idle');
+  const [errorMessage, setErrorMessage] = useState<string>('');
+  const [currentResume, setCurrentResume] = useState<ParsedResume | null>(null);
+  const [currentScore, setCurrentScore] = useState<ATSScore | null>(null);
+  const [ollamaStatus, setOllamaStatus] = useState<{ connected: boolean; models: string[] }>({ connected: false, models: [] });
+  const [processingProgress, setProcessingProgress] = useState(0);
+  
+  const atsManagerRef = useRef<ATSManager | null>(null);
 
-export const SingleResumeAnalysis: React.FC<SingleResumeAnalysisProps> = ({
-  jobDescription
-}) => {
-  const [uploadedFile, setUploadedFile] = useState<FileInfo | null>(null);
-  const [parsedResume, setParsedResume] = useState<ParsedResume | null>(null);
-  const [candidateScore, setCandidateScore] = useState<CandidateScore | null>(null);
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const onDrop = useCallback((acceptedFiles: File[]) => {
-    if (acceptedFiles.length > 0) {
-      const file = acceptedFiles[0];
-      const fileInfo: FileInfo = {
-        id: crypto.randomUUID(),
-        name: file.name,
-        type: getFileType(file.name),
-        size: file.size,
-        parseStatus: 'pending',
-        file
-      };
-      
-      setUploadedFile(fileInfo);
-      setError(null);
-      processFile(fileInfo);
+  // Initialize ATS Manager
+  const getATSManager = () => {
+    if (!atsManagerRef.current) {
+      atsManagerRef.current = new ATSManager();
     }
+    return atsManagerRef.current;
+  };
+
+  const { selectedJobId, getJobDescriptionById, addResume, addScore } = useATSStore();
+  const selectedJob = selectedJobId ? getJobDescriptionById(selectedJobId) : null;
+
+  // Check Ollama status on component mount
+  React.useEffect(() => {
+    const checkOllama = async () => {
+      const manager = getATSManager();
+      const status = await manager.testOllamaConnection();
+      setOllamaStatus(status);
+    };
+    checkOllama();
   }, []);
+
+  const onDrop = useCallback(async (acceptedFiles: File[]) => {
+    if (acceptedFiles.length === 0) return;
+    
+    const file = acceptedFiles[0];
+    setUploadStatus('uploading');
+    setErrorMessage('');
+    setProcessingProgress(10);
+
+    try {
+      const manager = getATSManager();
+      
+      // Simulate upload progress
+      await new Promise(resolve => setTimeout(resolve, 500));
+      setProcessingProgress(30);
+      setUploadStatus('processing');
+      
+      console.log('Starting resume parsing for:', file.name);
+      
+      // Real resume parsing with ATS services
+      const parsedResume = await manager.parseResume(file);
+      console.log('Parsed resume:', parsedResume);
+      
+      setProcessingProgress(70);
+      
+      // Add to store
+      addResume(parsedResume);
+      setCurrentResume(parsedResume);
+      
+      // Score if job is selected
+      let score: ATSScore | null = null;
+      if (selectedJob && parsedResume.parseStatus === 'completed') {
+        console.log('Scoring against job:', selectedJob.title);
+        score = await manager.scoreResume(parsedResume, selectedJob);
+        console.log('Score result:', score);
+        
+        addScore(score);
+        setCurrentScore(score);
+      }
+      
+      setProcessingProgress(100);
+      setUploadStatus('complete');
+
+    } catch (error) {
+      console.error('Resume processing error:', error);
+      setErrorMessage(error instanceof Error ? error.message : 'Failed to process resume. Please try again.');
+      setUploadStatus('error');
+      setProcessingProgress(0);
+    }
+  }, [selectedJob, addResume, addScore]);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
@@ -47,318 +108,294 @@ export const SingleResumeAnalysis: React.FC<SingleResumeAnalysisProps> = ({
       'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
       'application/msword': ['.doc'],
       'text/plain': ['.txt'],
-      'text/rtf': ['.rtf'],
-      'text/markdown': ['.md'],
-      'text/html': ['.html'],
-      'image/*': ['.jpg', '.jpeg', '.png', '.bmp', '.tiff']
+      'application/rtf': ['.rtf'],
     },
     maxFiles: 1,
-    multiple: false
+    disabled: uploadStatus === 'uploading' || uploadStatus === 'processing',
   });
 
-  const getFileType = (fileName: string): FileInfo['type'] => {
-    const extension = fileName.toLowerCase().split('.').pop();
-    switch (extension) {
-      case 'pdf': return 'pdf';
-      case 'docx': return 'docx';
-      case 'doc': return 'doc';
-      case 'txt': return 'txt';
-      case 'rtf': return 'rtf';
-      case 'md': return 'md';
-      case 'html': return 'html';
-      case 'jpg':
-      case 'jpeg':
-      case 'png':
-      case 'bmp':
-      case 'tiff':
-        return 'image';
-      default: return 'unknown';
-    }
-  };
-
-  const processFile = async (fileInfo: FileInfo) => {
-    setIsProcessing(true);
-    setUploadedFile(prev => prev ? { ...prev, parseStatus: 'processing' as const } : null);
-
-    try {
-      // Simulate file processing (replace with actual implementation)
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      // Mock parsed resume data
-      const mockParsedResume: ParsedResume = {
-        id: crypto.randomUUID(),
-        fileName: fileInfo.name,
-        fileType: fileInfo.type,
-        rawContent: 'Mock content...',
-        parsedData: {
-          personal: {
-            name: 'John Doe',
-            email: 'john.doe@email.com',
-            phone: '+1 (555) 123-4567',
-            location: 'San Francisco, CA',
-            linkedin: 'linkedin.com/in/johndoe'
-          },
-          summary: 'Experienced software engineer with 5+ years in React and Node.js development.',
-          experience: [
-            {
-              title: 'Senior Software Engineer',
-              company: 'Tech Corp',
-              duration: '2022 - Present',
-              description: 'Led development of React applications',
-              achievements: ['Improved performance by 40%', 'Led team of 4 developers']
-            }
-          ],
-          education: [
-            {
-              degree: 'Bachelor of Science in Computer Science',
-              institution: 'UC Berkeley',
-              graduationDate: '2018'
-            }
-          ],
-          skills: {
-            technical: ['React', 'Node.js', 'TypeScript', 'Python'],
-            soft: ['Leadership', 'Communication', 'Problem Solving'],
-            languages: ['English', 'Spanish'],
-            tools: ['Git', 'Docker', 'AWS']
-          },
-          certifications: ['AWS Solutions Architect'],
-          projects: [
-            {
-              name: 'E-commerce Platform',
-              description: 'Built a full-stack e-commerce solution',
-              technologies: ['React', 'Node.js', 'MongoDB']
-            }
-          ]
-        },
-        parseQuality: 92,
-        parsedAt: new Date()
-      };
-
-      // Mock candidate scoring
-      const mockScore: CandidateScore = {
-        candidateId: crypto.randomUUID(),
-        resumeId: mockParsedResume.id,
-        fileName: fileInfo.name,
-        candidateName: mockParsedResume.parsedData.personal.name,
-        email: mockParsedResume.parsedData.personal.email,
-        phone: mockParsedResume.parsedData.personal.phone,
-        overallScore: 85,
-        scores: {
-          keywordMatch: 88,
-          experienceRelevance: 90,
-          skillsAlignment: 85,
-          educationMatch: 80,
-          certifications: 75,
-          projectRelevance: 88,
-          industryFit: 82
-        },
-        highlights: [
-          'Strong React and TypeScript experience',
-          'Leadership experience with team management',
-          'Relevant AWS certification'
-        ],
-        gaps: [
-          'No Python experience mentioned',
-          'Limited testing framework knowledge'
-        ],
-        recommendations: [
-          'Consider highlighting any Python projects',
-          'Add unit testing experience if available'
-        ],
-        scoredAt: new Date()
-      };
-
-      setParsedResume(mockParsedResume);
-      setCandidateScore(mockScore);
-      setUploadedFile(prev => prev ? { ...prev, parseStatus: 'success' as const } : null);
-      
-    } catch (err) {
-      setError('Failed to process resume. Please try again.');
-      setUploadedFile(prev => prev ? { ...prev, parseStatus: 'error' as const } : null);
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
-  const resetAnalysis = () => {
-    setUploadedFile(null);
-    setParsedResume(null);
-    setCandidateScore(null);
-    setError(null);
+  const resetUpload = () => {
+    setUploadStatus('idle');
+    setCurrentResume(null);
+    setCurrentScore(null);
+    setErrorMessage('');
   };
 
   return (
-    <div className="space-y-6">
-      {!jobDescription && (
-        <Alert>
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>
-            No job description selected. Go to the Job Descriptions tab to create one for more accurate scoring.
+    <div className="h-full space-y-6">
+      {/* Status Indicators */}
+      <div className="flex gap-4">
+        {/* Job Selection Alert */}
+        {!selectedJob && (
+          <Alert className="flex-1">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              Select a job description from the "Job Descriptions" tab to enable resume scoring.
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {/* Ollama Status */}
+        <Alert className={ollamaStatus.connected ? 'border-green-200 bg-green-50' : 'border-orange-200 bg-orange-50'}>
+          {ollamaStatus.connected ? (
+            <Wifi className="h-4 w-4 text-green-600" />
+          ) : (
+            <WifiOff className="h-4 w-4 text-orange-600" />
+          )}
+          <AlertDescription className={ollamaStatus.connected ? 'text-green-800' : 'text-orange-800'}>
+            {ollamaStatus.connected 
+              ? `Ollama connected (${ollamaStatus.models.length} models)`
+              : 'Ollama not connected - using fallback parsing'
+            }
           </AlertDescription>
         </Alert>
-      )}
+      </div>
 
-      {/* Upload Area */}
-      {!uploadedFile && (
-        <Card>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-full">
+        {/* Upload Section */}
+        <Card className="flex flex-col">
           <CardHeader>
             <CardTitle>Upload Resume</CardTitle>
             <CardDescription>
-              Upload a single resume for detailed analysis and scoring
+              Upload a resume file to analyze. Supported formats: PDF, DOCX, DOC, TXT, RTF
             </CardDescription>
           </CardHeader>
-          <CardContent>
-            <div
-              {...getRootProps()}
-              className={cn(
-                "border-2 border-dashed rounded-lg p-12 text-center cursor-pointer transition-colors",
-                isDragActive 
-                  ? "border-primary bg-primary/5" 
-                  : "border-muted-foreground/25 hover:border-primary/50"
-              )}
-            >
-              <input {...getInputProps()} />
-              <Upload className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-              <h3 className="text-lg font-semibold mb-2">
-                {isDragActive ? "Drop the resume here" : "Drop resume here or click to browse"}
-              </h3>
-              <p className="text-muted-foreground mb-4">
-                Supports PDF, DOCX, DOC, TXT, RTF, MD, HTML, and images
-              </p>
-              <p className="text-sm text-muted-foreground">
-                Maximum file size: 10MB
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Processing Status */}
-      {uploadedFile && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <FileText className="h-5 w-5" />
-              {uploadedFile.name}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center gap-2">
-              <Badge variant={
-                uploadedFile.parseStatus === 'success' ? 'default' :
-                uploadedFile.parseStatus === 'error' ? 'destructive' :
-                uploadedFile.parseStatus === 'processing' ? 'secondary' : 'outline'
-              }>
-                {uploadedFile.parseStatus === 'processing' && <Loader2 className="h-3 w-3 mr-1 animate-spin" />}
-                {uploadedFile.parseStatus === 'success' && <CheckCircle className="h-3 w-3 mr-1" />}
-                {uploadedFile.parseStatus === 'error' && <AlertCircle className="h-3 w-3 mr-1" />}
-                {uploadedFile.parseStatus.charAt(0).toUpperCase() + uploadedFile.parseStatus.slice(1)}
-              </Badge>
-              <span className="text-sm text-muted-foreground">
-                {(uploadedFile.size / 1024 / 1024).toFixed(2)} MB
-              </span>
-            </div>
-
-            {isProcessing && (
-              <div className="space-y-2">
-                <Progress value={66} className="h-2" />
-                <p className="text-sm text-muted-foreground">
-                  Parsing resume content and extracting information...
+          
+          <CardContent className="flex-1 flex flex-col">
+            {uploadStatus === 'idle' && (
+              <div
+                {...getRootProps()}
+                className={`flex-1 border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors
+                  ${isDragActive 
+                    ? 'border-primary bg-primary/5' 
+                    : 'border-muted-foreground/25 hover:border-muted-foreground/50'
+                  }`}
+              >
+                <input {...getInputProps()} />
+                <Upload className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+                <p className="text-lg font-medium mb-2">
+                  {isDragActive ? 'Drop the file here' : 'Drag & drop a resume'}
                 </p>
+                <p className="text-muted-foreground mb-4">
+                  or click to select a file
+                </p>
+                <Button variant="outline">
+                  Select File
+                </Button>
               </div>
             )}
 
-            {error && (
-              <Alert variant="destructive">
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
+            {(uploadStatus === 'uploading' || uploadStatus === 'processing') && (
+              <div className="flex-1 flex flex-col justify-center items-center space-y-4">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                <div className="text-center space-y-2">
+                  <p className="font-medium">
+                    {uploadStatus === 'uploading' ? 'Uploading...' : 'Processing Resume...'}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    {uploadStatus === 'uploading' 
+                      ? 'File is being uploaded' 
+                      : ollamaStatus.connected 
+                        ? 'Analyzing with local AI model' 
+                        : 'Extracting content with fallback parsing'
+                    }
+                  </p>
+                </div>
+                <Progress value={processingProgress} className="w-full max-w-sm" />
+              </div>
             )}
 
-            <div className="flex gap-2">
-              <Button onClick={resetAnalysis} variant="outline" size="sm">
-                Upload Different Resume
-              </Button>
-            </div>
+            {uploadStatus === 'complete' && currentResume && (
+              <div className="space-y-4">
+                <div className="flex items-center space-x-2 text-green-600">
+                  <CheckCircle2 className="h-5 w-5" />
+                  <span className="font-medium">Resume processed successfully!</span>
+                </div>
+                
+                <div className="space-y-2">
+                  <div className="flex items-center space-x-2">
+                    <FileText className="h-4 w-4" />
+                    <span className="text-sm">{currentResume.fileName}</span>
+                  </div>
+                  <div className="text-sm text-muted-foreground">
+                    Processed on {new Date(currentResume.uploadDate).toLocaleDateString()}
+                  </div>
+                </div>
+
+                <div className="flex space-x-2">
+                  <Button onClick={resetUpload} variant="outline" size="sm">
+                    Upload Another
+                  </Button>
+                  {currentScore && (
+                    <Button size="sm">
+                      <Download className="h-4 w-4 mr-2" />
+                      Download Report
+                    </Button>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {uploadStatus === 'error' && (
+              <div className="space-y-4">
+                <Alert variant="destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>{errorMessage}</AlertDescription>
+                </Alert>
+                <Button onClick={resetUpload} variant="outline">
+                  Try Again
+                </Button>
+              </div>
+            )}
           </CardContent>
         </Card>
-      )}
 
-      {/* Results */}
-      {candidateScore && parsedResume && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Score Card */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Overall Score</CardTitle>
-              <CardDescription>AI-powered analysis results</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="text-center">
-                <div className="text-4xl font-bold text-primary mb-2">
-                  {candidateScore.overallScore}%
-                </div>
-                <p className="text-muted-foreground">Overall Match</p>
+        {/* Results Section */}
+        <Card className="flex flex-col">
+          <CardHeader>
+            <CardTitle>Analysis Results</CardTitle>
+            <CardDescription>
+              Resume analysis and scoring results
+            </CardDescription>
+          </CardHeader>
+          
+          <CardContent className="flex-1">
+            {!currentResume && (
+              <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground">
+                <Eye className="h-12 w-12 mb-4" />
+                <p>Upload a resume to see analysis results</p>
               </div>
+            )}
 
-              <div className="space-y-3">
-                {Object.entries(candidateScore.scores).map(([key, value]) => (
-                  <div key={key} className="space-y-1">
-                    <div className="flex justify-between text-sm">
-                      <span className="capitalize">{key.replace(/([A-Z])/g, ' $1').trim()}</span>
-                      <span>{value}%</span>
+            {currentResume && (
+              <div className="space-y-6">
+                {/* Personal Info */}
+                {currentResume.personalInfo && (
+                  <div>
+                    <h3 className="font-semibold mb-3">Candidate Information</h3>
+                    <div className="space-y-2 text-sm">
+                      {currentResume.personalInfo.name && (
+                        <p><span className="font-medium">Name:</span> {currentResume.personalInfo.name}</p>
+                      )}
+                      {currentResume.personalInfo.email && (
+                        <p><span className="font-medium">Email:</span> {currentResume.personalInfo.email}</p>
+                      )}
+                      {currentResume.personalInfo.phone && (
+                        <p><span className="font-medium">Phone:</span> {currentResume.personalInfo.phone}</p>
+                      )}
+                      {currentResume.personalInfo.location && (
+                        <p><span className="font-medium">Location:</span> {currentResume.personalInfo.location}</p>
+                      )}
+                      {currentResume.totalExperienceYears && (
+                        <p><span className="font-medium">Experience:</span> {currentResume.totalExperienceYears} years</p>
+                      )}
+                      {(!currentResume.personalInfo.name && !currentResume.personalInfo.email) && (
+                        <p className="text-muted-foreground italic">
+                          {ollamaStatus.connected 
+                            ? 'AI parsing in progress...' 
+                            : 'Basic text extraction completed'
+                          }
+                        </p>
+                      )}
                     </div>
-                    <Progress value={value} className="h-2" />
                   </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+                )}
 
-          {/* Insights */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Analysis Insights</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <h4 className="font-semibold text-green-600 mb-2">Strengths</h4>
-                <ul className="space-y-1">
-                  {candidateScore.highlights.map((highlight, index) => (
-                    <li key={index} className="text-sm flex items-start gap-2">
-                      <CheckCircle className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
-                      {highlight}
-                    </li>
-                  ))}
-                </ul>
-              </div>
+                {/* Skills */}
+                <div>
+                  <h3 className="font-semibold mb-3">Key Skills</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {currentResume.skills && currentResume.skills.length > 0 ? (
+                      currentResume.skills.slice(0, 8).map((skill, index: number) => (
+                        <Badge key={index} variant="secondary">
+                          {skill.name}
+                        </Badge>
+                      ))
+                    ) : currentResume.keywords && currentResume.keywords.length > 0 ? (
+                      currentResume.keywords.slice(0, 8).map((keyword, index: number) => (
+                        <Badge key={index} variant="outline">
+                          {keyword}
+                        </Badge>
+                      ))
+                    ) : (
+                      <p className="text-sm text-muted-foreground">No skills extracted yet</p>
+                    )}
+                  </div>
+                </div>
 
-              <div>
-                <h4 className="font-semibold text-orange-600 mb-2">Areas for Improvement</h4>
-                <ul className="space-y-1">
-                  {candidateScore.gaps.map((gap, index) => (
-                    <li key={index} className="text-sm flex items-start gap-2">
-                      <AlertCircle className="h-4 w-4 text-orange-600 mt-0.5 flex-shrink-0" />
-                      {gap}
-                    </li>
-                  ))}
-                </ul>
-              </div>
+                {/* Parse Status */}
+                <div>
+                  <div className="flex items-center gap-2 text-xs">
+                    <div className={`w-2 h-2 rounded-full ${
+                      currentResume.parseStatus === 'completed' ? 'bg-green-500' :
+                      currentResume.parseStatus === 'failed' ? 'bg-red-500' : 'bg-yellow-500'
+                    }`} />
+                    <span className="capitalize">{currentResume.parseStatus}</span>
+                    {currentResume.parseStatus === 'failed' && currentResume.parseError && (
+                      <span className="text-red-600">- {currentResume.parseError}</span>
+                    )}
+                  </div>
+                </div>
 
-              <div>
-                <h4 className="font-semibold text-blue-600 mb-2">Recommendations</h4>
-                <ul className="space-y-1">
-                  {candidateScore.recommendations.map((rec, index) => (
-                    <li key={index} className="text-sm text-muted-foreground">
-                      • {rec}
-                    </li>
-                  ))}
-                </ul>
+                {/* Scoring Results */}
+                {currentScore && (
+                  <div>
+                    <h3 className="font-semibold mb-3">Matching Score</h3>
+                    <div className="space-y-4">
+                      <div className="text-center p-4 bg-primary/5 rounded-lg">
+                        <div className="text-3xl font-bold text-primary mb-1">
+                          {currentScore.overallScore}%
+                        </div>
+                        <div className="text-sm text-muted-foreground">Overall Match</div>
+                      </div>
+
+                      <div className="space-y-3">
+                        {Object.entries(currentScore.breakdown).map(([key, data]: [string, any]) => (
+                          <div key={key}>
+                            <div className="flex justify-between items-center mb-1">
+                              <span className="text-sm font-medium capitalize">{key}</span>
+                              <span className="text-sm text-muted-foreground">{data.score}%</span>
+                            </div>
+                            <Progress value={data.score} className="h-2" />
+                          </div>
+                        ))}
+                      </div>
+
+                      {currentScore.insights.strengths.length > 0 && (
+                        <div>
+                          <h4 className="font-medium text-green-600 mb-2">Strengths</h4>
+                          <ul className="text-sm space-y-1">
+                            {currentScore.insights.strengths.map((strength: string, index: number) => (
+                              <li key={index} className="flex items-start">
+                                <CheckCircle2 className="h-3 w-3 text-green-500 mr-2 mt-0.5 flex-shrink-0" />
+                                {strength}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                      {currentScore.insights.gaps.length > 0 && (
+                        <div>
+                          <h4 className="font-medium text-orange-600 mb-2">Areas for Improvement</h4>
+                          <ul className="text-sm space-y-1">
+                            {currentScore.insights.gaps.map((gap: string, index: number) => (
+                              <li key={index} className="flex items-start">
+                                <AlertCircle className="h-3 w-3 text-orange-500 mr-2 mt-0.5 flex-shrink-0" />
+                                {gap}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
+            )}
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 };

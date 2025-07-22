@@ -8,6 +8,11 @@ export default defineConfig({
   server: {
     port: 5173,
     strictPort: true,
+    host: true,
+    cors: true,
+    hmr: {
+      port: 5174,
+    },
   },
   resolve: {
     alias: {
